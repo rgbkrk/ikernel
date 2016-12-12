@@ -251,6 +251,20 @@ readConnectionFile(
           {}
         )
 
+        const display = function(obj) {
+          msg.respond(
+            sockets[IOPUB],
+            'display_data',
+            {
+              data: {
+                'text/plain': util.inspect(obj),
+              },
+            },
+            {}
+          )
+        }
+        sandbox.display = display;
+
         try {
           result = vm.runInContext(code, sandbox, {
             filename: '<ikernel>'
