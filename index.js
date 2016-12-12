@@ -76,10 +76,38 @@ function formConnectionString(connectionInfo, channel) {
   return `${connectionInfo.transport}://${connectionInfo.ip}${portDelimiter}${port}`
 }
 
+function createSubscriber(socket) {
+  return Rx.Subscriber.create(messageObject => {
+    socket.send(new jmp.Message(messageObject));
+  }, err => {
+    // We don't expect to send errors to the kernel
+    console.error(err);
+  }, () => {
+    // tear it down, tear it *all* down
+    socket.removeAllListeners();
+    socket.close();
+  });
+}
+
+function createObservable(socket) {
+  return Rx.Observable.fromEvent(socket, 'message')
+                   .map(msg => {
+                     // Conform to same message format as notebook websockets
+                     // See https://github.com/n-riesco/jmp/issues/10
+                     delete msg.idents;
+                     return msg;
+                   })
+                   .publish()
+                   .refCount();
+}
+
 function createSubject(socket) {
-  const subj = Subject.create(createSubscriber(socket),
-                              createObservable(socket));
-  return subj;
+  return Rx.Subject.create(createSubscriber(socket),
+                           createObservable(socket));
+}
+
+function createSubjects(sockets) {
+  return _.mapValues(sockets, createSubject)
 }
 
 function createSocket(id, connectionInfo, channel) {
@@ -87,7 +115,7 @@ function createSocket(id, connectionInfo, channel) {
   const scheme = connectionInfo.signature_scheme.slice('hmac-'.length)
   const socket = new jmp.Socket(zmqType, scheme, connectionInfo.key)
   socket.identity = id
-  socket.connect(formConnectionString(connectionInfo, channel))
+  socket.bind(formConnectionString(connectionInfo, channel))
   return socket
 }
 
@@ -130,15 +158,19 @@ readConnectionFile(
   console.log(connectionInfo)
   const id = uuid.v4();
   console.log('id: ', id)
-  const channels = createSockets(id, connectionInfo)
+  const channels = createSubjects(createSockets(id, connectionInfo))
 
-
+  _.forOwn(channels, (channel, channelName) => {
+    channel.subscribe(console.log.bind(console, `${channelName}: `))
+  })
 
 
   // Close down the channels
+  /*
   _.forOwn(channels, (channel, channelName) => {
     channel.removeAllListeners()
     channel.close()
   })
+  */
 
 }).catch(err => console.error(err))
