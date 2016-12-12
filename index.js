@@ -204,19 +204,33 @@ function createSession(connectionInfo) {
           {}
         )
 
-        // Provide a display function for outputting arbitrary mimetypes
-        const display = function(obj) {
+        msg.respond(
+          sockets[IOPUB],
+          'status',
+          {
+            execution_state: 'busy',
+          },
+          {}
+        )
+
+        // Our display is bound to the current message (as a parent)
+        const display = function(data, options) {
+          const payload = {}
+          if (options.raw) {
+            payload.data = data
+          } else {
+            payload.data = { 'text/plain': util.inspect(obj) }
+          }
+
           msg.respond(
             sockets[IOPUB],
             'display_data',
-            {
-              data: {
-                'text/plain': util.inspect(obj),
-              },
-            },
+            payload,
             {}
           )
         }
+
+        // We provide the function directly on the user's REPL
         sandbox.display = display;
 
         try {
