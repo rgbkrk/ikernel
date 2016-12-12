@@ -1,0 +1,11 @@
+{
+  "name": "ikernel",
+  "version": "1.0.0",
+  "description": "Prototyping a Jupyter kernel for JavaScript directly",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "BSD-3-Clause"
+}
