@@ -91,12 +91,6 @@ function createSubscriber(socket) {
 
 function createObservable(socket) {
   return Rx.Observable.fromEvent(socket, 'message')
-                   .map(msg => {
-                     // Conform to same message format as notebook websockets
-                     // See https://github.com/n-riesco/jmp/issues/10
-                     delete msg.idents;
-                     return msg;
-                   })
                    .publish()
                    .refCount();
 }
@@ -152,17 +146,69 @@ if (!connectionFile) {
 // TODO: Allow a --existing flag like this?
 //   path.join(jupyterPaths.runtimeDir(), existingFile)
 
+function getUsername() {
+  return process.env.LOGNAME || process.env.USER || process.env.LNAME ||
+    process.env.USERNAME;
+}
+
+function createMessage(session, msg_type, fields) {
+  const username = getUsername();
+  return _.merge({
+    header: {
+      username,
+      session,
+      msg_type,
+      msg_id: uuid.v4(),
+      date: new Date(),
+      version: '5.0',
+    },
+    metadata: {},
+    parent_header: {},
+    content: {},
+  }, fields);
+}
+
 readConnectionFile(
   connectionFile
 ).then((connectionInfo) => {
   console.log(connectionInfo)
   const id = uuid.v4();
   console.log('id: ', id)
-  const channels = createSubjects(createSockets(id, connectionInfo))
+  const sockets = createSockets(id, connectionInfo)
+  const channels = createSubjects(sockets)
 
   _.forOwn(channels, (channel, channelName) => {
     channel.subscribe(console.log.bind(console, `${channelName}: `))
   })
+
+  channels[SHELL]
+    .filter(msg => msg.header.msg_type === 'kernel_info_request')
+    .subscribe(msg => {
+      msg.respond(
+        sockets[SHELL],
+        'kernel_info_reply',
+        {
+          "protocol_version": "5.0",
+          "implementation": "ijavascript",
+          "implementation_version": "v0",
+          "language_info": {
+              "name": "javascript",
+              "version": process.version,
+              "mimetype": "application/javascript",
+              "file_extension": ".js",
+          },
+          "banner": (
+              "ikernel v0\n" +
+              "https://github.com/nteract\n"
+          ),
+          "help_links": [{
+              "text": "ikernel",
+              "url": "https://github.com/nteract",
+          }],
+        },
+        {}
+      )
+    })
 
 
   // Close down the channels
