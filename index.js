@@ -76,6 +76,12 @@ function formConnectionString(connectionInfo, channel) {
   return `${connectionInfo.transport}://${connectionInfo.ip}${portDelimiter}${port}`
 }
 
+function createSubject(socket) {
+  const subj = Subject.create(createSubscriber(socket),
+                              createObservable(socket));
+  return subj;
+}
+
 function createSocket(id, connectionInfo, channel) {
   const zmqType = ZMQType.backend[channel]
   const scheme = connectionInfo.signature_scheme.slice('hmac-'.length)
@@ -88,7 +94,8 @@ function createSocket(id, connectionInfo, channel) {
 function createSockets(id, connectionInfo) {
   return [IOPUB, SHELL, STDIN, CONTROL].reduce((channels, channel) =>
     Object.assign({}, channels, { [channel]: createSocket(id, connectionInfo, channel) }),
-    {})
+    {}
+  )
 }
 
 function createSession() {
@@ -105,18 +112,33 @@ function createSession() {
   return sandbox
 }
 
-
 // Take in a connection file
 // Create the sockets
 // Set up the sandbox
 
+const connectionFile = process.argv[2];
+if (!connectionFile) {
+  throw new Error("No connection file provided")
+}
+
+// TODO: Allow a --existing flag like this?
+//   path.join(jupyterPaths.runtimeDir(), existingFile)
+
 readConnectionFile(
-  path.join(jupyterPaths.runtimeDir(), 'kernel-93838.json')
+  connectionFile
 ).then((connectionInfo) => {
   console.log(connectionInfo)
   const id = uuid.v4();
   console.log('id: ', id)
   const channels = createSockets(id, connectionInfo)
-  console.log(channels)
 
-})
+
+
+
+  // Close down the channels
+  _.forOwn(channels, (channel, channelName) => {
+    channel.removeAllListeners()
+    channel.close()
+  })
+
+}).catch(err => console.error(err))
