@@ -174,7 +174,7 @@ readConnectionFile(
   const channels = createSubjects(sockets)
 
   // All of our "session"
-  let execution_count = 1;
+  let execution_count = 0;
   const sandbox = vm.createContext(
     Object.assign(
       {},
@@ -251,7 +251,34 @@ readConnectionFile(
           {}
         )
 
-        result = vm.runInContext(code, sandbox)
+        try {
+          result = vm.runInContext(code, sandbox, {
+            filename: '<ikernel>'
+          })
+
+          msg.respond(
+            sockets[IOPUB],
+            'execute_result',
+            {
+              execution_count,
+              data: {
+                'text/plain': util.inspect(result),
+              }
+            },
+            {}
+          )
+        } catch(err) {
+          msg.respond(
+            sockets[IOPUB],
+            'error',
+            {
+              ename: err.name,
+              evalue: err.message,
+              traceback: err.stack.split("\n"),
+            },
+            {}
+          )
+        }
 
         msg.respond(
           sockets[IOPUB],
@@ -262,17 +289,7 @@ readConnectionFile(
           {}
         )
 
-        msg.respond(
-          sockets[IOPUB],
-          'execute_result',
-          {
-            execution_count,
-            data: {
-              'text/plain': util.inspect(result),
-            }
-          },
-          {}
-        )
+
 
       })
 }).catch(err => console.error(err))
