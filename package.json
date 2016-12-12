@@ -10,6 +10,7 @@
   "license": "BSD-3-Clause",
   "dependencies": {
     "jmp": "^0.7.5",
+    "jupyter-paths": "^1.1.0",
     "lodash": "^4.17.2",
     "rxjs": "^5.0.0-rc.5"
   }
