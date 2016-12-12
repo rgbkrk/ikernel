@@ -121,27 +121,6 @@ function createSockets(id, connectionInfo) {
   )
 }
 
-function createSession() {
-  // Later we'll have this create a display_data object
-  const hookedDisplay = console.log.bind(console)
-
-
-
-  return sandbox
-}
-
-// Take in a connection file
-// Create the sockets
-// Set up the sandbox
-
-const connectionFile = process.argv[2];
-if (!connectionFile) {
-  throw new Error("No connection file provided")
-}
-
-// TODO: Allow a --existing flag like this?
-//   path.join(jupyterPaths.runtimeDir(), existingFile)
-
 function getUsername() {
   return process.env.LOGNAME || process.env.USER || process.env.LNAME ||
     process.env.USERNAME;
@@ -163,6 +142,14 @@ function createMessage(session, msg_type, fields) {
     content: {},
   }, fields);
 }
+
+const connectionFile = process.argv[2];
+if (!connectionFile) {
+  throw new Error("No connection file provided")
+}
+
+// TODO: Allow a --existing flag like this?
+//   path.join(jupyterPaths.runtimeDir(), existingFile)
 
 readConnectionFile(
   connectionFile
