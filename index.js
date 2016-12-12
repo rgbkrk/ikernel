@@ -204,6 +204,7 @@ function createSession(connectionInfo) {
           {}
         )
 
+        // Provide a display function for outputting arbitrary mimetypes
         const display = function(obj) {
           msg.respond(
             sockets[IOPUB],
@@ -241,7 +242,7 @@ function createSession(connectionInfo) {
             {
               ename: err.name,
               evalue: err.message,
-              traceback: err.stack.split("\n"),
+              traceback: err.stack && err.stack.split ? err.stack.split("\n") : null,
             },
             {}
           )
