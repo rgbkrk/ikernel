@@ -210,7 +210,64 @@ readConnectionFile(
       )
     })
 
+    channels[SHELL]
+      .filter(msg => msg.header.msg_type === 'is_complete_request')
+      .subscribe(msg => {
+        msg.respond(
+          sockets[SHELL],
+          'is_complete_reply',
+          {
+            status: 'complete',
+          },
+          {}
+        )
+      })
 
+    channels[SHELL]
+      .filter(msg => msg.header.msg_type === 'execute_request')
+      .subscribe(msg => {
+        msg.respond(
+          sockets[SHELL],
+          'execute_reply',
+          {
+            status: 'ok',
+            execution_count: 2,
+          },
+          {}
+        )
+
+        msg.respond(
+          sockets[IOPUB],
+          'execute_input',
+          {
+            code: msg.content.code,
+            execution_count: 2,
+          },
+          {}
+        )
+
+        msg.respond(
+          sockets[IOPUB],
+          'status',
+          {
+            execution_state: 'idle',
+          },
+          {}
+        )
+
+        msg.respond(
+          sockets[IOPUB],
+          'execute_result',
+          {
+            execution_count: 2,
+            data: {
+              'text/plain': 'moo'
+            }
+          },
+          {}
+        )
+
+      })
   // Close down the channels
   /*
   _.forOwn(channels, (channel, channelName) => {
