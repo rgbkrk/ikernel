@@ -215,6 +215,7 @@ function createSession(connectionInfo) {
 
         // Our display is bound to the current message (as a parent)
         const display = function(data, options) {
+          let messageType = 'display_data'
           const payload = {}
           if (options.raw) {
             payload.data = data
@@ -222,9 +223,19 @@ function createSession(connectionInfo) {
             payload.data = { 'text/plain': util.inspect(obj) }
           }
 
+          if (options.display_id) {
+            payload.transient = {
+              display_id: options.display_id,
+            }
+          }
+
+          if (options.update) {
+            messageType = 'update_display_data'
+          }
+
           msg.respond(
             sockets[IOPUB],
-            'display_data',
+            messageType,
             payload,
             {}
           )
