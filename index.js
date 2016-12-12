@@ -121,42 +121,8 @@ function createSockets(id, connectionInfo) {
   )
 }
 
-function getUsername() {
-  return process.env.LOGNAME || process.env.USER || process.env.LNAME ||
-    process.env.USERNAME;
-}
-
-function createMessage(session, msg_type, fields) {
-  const username = getUsername();
-  return _.merge({
-    header: {
-      username,
-      session,
-      msg_type,
-      msg_id: uuid.v4(),
-      date: new Date(),
-      version: '5.0',
-    },
-    metadata: {},
-    parent_header: {},
-    content: {},
-  }, fields);
-}
-
-const connectionFile = process.argv[2];
-if (!connectionFile) {
-  throw new Error("No connection file provided")
-}
-
-// TODO: Allow a --existing flag like this?
-//   path.join(jupyterPaths.runtimeDir(), existingFile)
-
-readConnectionFile(
-  connectionFile
-).then((connectionInfo) => {
-  console.log(connectionInfo)
+function createSession(connectionInfo) {
   const id = uuid.v4();
-  console.log('id: ', id)
   const sockets = createSockets(id, connectionInfo)
   const channels = createSubjects(sockets)
 
@@ -289,8 +255,20 @@ readConnectionFile(
           },
           {}
         )
-
-
-
       })
-}).catch(err => console.error(err))
+}
+
+
+//
+// Main entry point for our kernel, expects a connection file
+//
+const connectionFile = process.argv[2];
+// TODO: Allow a --existing flag like this?
+//   path.join(jupyterPaths.runtimeDir(), existingFile)
+if (!connectionFile) {
+  throw new Error("No connection file provided")
+}
+
+readConnectionFile(connectionFile)
+  .then(createSession)
+  .catch(err => console.error(err))
