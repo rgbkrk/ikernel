@@ -2,6 +2,8 @@ const fs = require('fs')
 const vm = require('vm')
 const path = require('path')
 
+const uuid = require('uuid')
+
 const jmp = require('jmp')
 const Rx = require('rxjs/Rx')
 const _ = require('lodash')
@@ -65,22 +67,28 @@ function readConnectionFile(file) {
   })
 }
 
-function formConnectionString(config, channel) {
-  const portDelimiter = config.transport === 'tcp' ? ':' : '-';
-  const port = config[channel + '_port'];
+function formConnectionString(connectionInfo, channel) {
+  const portDelimiter = connectionInfo.transport === 'tcp' ? ':' : '-'
+  const port = connectionInfo[channel + '_port']
   if (! port) {
-    throw new Error(`Port not found for channel "${channel}"`);
+    throw new Error(`Port not found for channel "${channel}"`)
   }
-  return `${config.transport}://${config.ip}${portDelimiter}${port}`;
+  return `${connectionInfo.transport}://${connectionInfo.ip}${portDelimiter}${port}`
 }
 
-function createSocket(channel, identity, config) {
-  const zmqType = ZMQType.backend[channel];
-  const scheme = config.signature_scheme.slice('hmac-'.length);
-  const socket = new jmp.Socket(zmqType, scheme, config.key);
-  socket.identity = identity;
-  socket.connect(formConnectionString(config, channel));
-  return socket;
+function createSocket(id, connectionInfo, channel) {
+  const zmqType = ZMQType.backend[channel]
+  const scheme = connectionInfo.signature_scheme.slice('hmac-'.length)
+  const socket = new jmp.Socket(zmqType, scheme, connectionInfo.key)
+  socket.identity = id
+  socket.connect(formConnectionString(connectionInfo, channel))
+  return socket
+}
+
+function createSockets(id, connectionInfo) {
+  return [IOPUB, SHELL, STDIN, CONTROL].reduce((channels, channel) =>
+    Object.assign({}, channels, { [channel]: createSocket(id, connectionInfo, channel) }),
+    {})
 }
 
 function createSession() {
@@ -104,4 +112,11 @@ function createSession() {
 
 readConnectionFile(
   path.join(jupyterPaths.runtimeDir(), 'kernel-93838.json')
-).then(console.log)
+).then((connectionInfo) => {
+  console.log(connectionInfo)
+  const id = uuid.v4();
+  console.log('id: ', id)
+  const channels = createSockets(id, connectionInfo)
+  console.log(channels)
+
+})
