@@ -1,6 +1,7 @@
 const fs = require('fs')
 const vm = require('vm')
 const path = require('path')
+const util = require('util')
 
 const uuid = require('uuid')
 
@@ -124,12 +125,7 @@ function createSession() {
   // Later we'll have this create a display_data object
   const hookedDisplay = console.log.bind(console)
 
-  var sandbox = vm.createContext(
-    Object.assign(
-      { display: hookedDisplay },
-      global
-    )
-  )
+
 
   return sandbox
 }
@@ -177,9 +173,15 @@ readConnectionFile(
   const sockets = createSockets(id, connectionInfo)
   const channels = createSubjects(sockets)
 
-  _.forOwn(channels, (channel, channelName) => {
-    channel.subscribe(console.log.bind(console, `${channelName}: `))
-  })
+  // All of our "session"
+  let execution_count = 1;
+  const sandbox = vm.createContext(
+    Object.assign(
+      {},
+      // { display: hookedDisplay },
+      global
+    )
+  )
 
   channels[SHELL]
     .filter(msg => msg.header.msg_type === 'kernel_info_request')
@@ -226,25 +228,30 @@ readConnectionFile(
     channels[SHELL]
       .filter(msg => msg.header.msg_type === 'execute_request')
       .subscribe(msg => {
-        msg.respond(
-          sockets[SHELL],
-          'execute_reply',
-          {
-            status: 'ok',
-            execution_count: 2,
-          },
-          {}
-        )
+        execution_count = execution_count + 1
+        const code = msg.content.code
 
         msg.respond(
           sockets[IOPUB],
           'execute_input',
           {
-            code: msg.content.code,
-            execution_count: 2,
+            code,
+            execution_count,
           },
           {}
         )
+
+        msg.respond(
+          sockets[SHELL],
+          'execute_reply',
+          {
+            status: 'ok',
+            execution_count,
+          },
+          {}
+        )
+
+        result = vm.runInContext(code, sandbox)
 
         msg.respond(
           sockets[IOPUB],
@@ -259,21 +266,13 @@ readConnectionFile(
           sockets[IOPUB],
           'execute_result',
           {
-            execution_count: 2,
+            execution_count,
             data: {
-              'text/plain': 'moo'
+              'text/plain': util.inspect(result),
             }
           },
           {}
         )
 
       })
-  // Close down the channels
-  /*
-  _.forOwn(channels, (channel, channelName) => {
-    channel.removeAllListeners()
-    channel.close()
-  })
-  */
-
 }).catch(err => console.error(err))
