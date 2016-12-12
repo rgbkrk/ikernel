@@ -132,6 +132,7 @@ function createSession(connectionInfo) {
     Object.assign(
       {},
       // { display: hookedDisplay },
+      { require },
       global
     )
   )
@@ -214,13 +215,13 @@ function createSession(connectionInfo) {
         )
 
         // Our display is bound to the current message (as a parent)
-        const display = function(data, options) {
+        const display = function(data, options={}) {
           let messageType = 'display_data'
           const payload = {}
           if (options.raw) {
             payload.data = data
           } else {
-            payload.data = { 'text/plain': util.inspect(obj) }
+            payload.data = { 'text/plain': util.inspect(data) }
           }
 
           if (options.display_id) {
@@ -249,17 +250,30 @@ function createSession(connectionInfo) {
             filename: '<ikernel>'
           })
 
-          msg.respond(
-            sockets[IOPUB],
-            'execute_result',
-            {
-              execution_count,
-              data: {
-                'text/plain': util.inspect(result),
-              }
-            },
-            {}
-          )
+          if(_.isUndefined(result)) {
+            msg.respond(
+              sockets[IOPUB],
+              'execute_result',
+              {
+                execution_count,
+                data: {}
+              },
+              {}
+            )
+          } else {
+            msg.respond(
+              sockets[IOPUB],
+              'execute_result',
+              {
+                execution_count,
+                data: {
+                  'text/plain': util.inspect(result),
+                }
+              },
+              {}
+            )
+          }
+
         } catch(err) {
           msg.respond(
             sockets[IOPUB],
